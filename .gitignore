@@ -1,0 +1,15 @@
+# Config
+config.json
+
+# Runtime
+*.log
+*.pid
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
