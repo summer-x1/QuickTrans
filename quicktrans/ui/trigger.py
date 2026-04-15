@@ -116,7 +116,8 @@ class TriggerView(NSView):
             h = s.size().height
             s.drawInRect_(NSMakeRect(0, (icon_size - h) / 2 - 1, icon_size, h))
 
-    def show(x: float, y: float, config: SimpleNamespace, on_click) -> None:
+
+def show(x: float, y: float, config: SimpleNamespace, on_click) -> None:
         """Show trigger icon near mouse position."""
         global _trigger_window, _trigger_timer, _on_click_callback, _config, _trigger_view
         dismiss()

@@ -160,24 +160,24 @@ def show(translated: str, x: float, y: float, config: SimpleNamespace) -> None:
     y_cursor += trans_h - btn_bar_h - padding
 
     # Copy button
-    copy_btn = NSButton.alloc().initWithBezelStyleTarget_(
+    copy_btn = _CopyButton.alloc().initWithFrame_(
         NSMakeRect(padding, y_cursor, 80, btn_h)
     )
     copy_btn.setBezelStyle_(NSBezelStyleSmallSquare)
     copy_btn.setTitle_("复制译文")
     copy_btn.setFont_(NSFont.systemFontOfSize_(12))
-    copy_btn.setTarget_(self)
+    copy_btn.setTarget_(copy_btn)
     copy_btn.setAction_("doCopy:")
     cv.addSubview_(copy_btn)
 
     # Pin button
-    pin_btn = NSButton.alloc().initWithBezelStyleTarget_(
+    pin_btn = _PinButton.alloc().initWithFrame_(
         NSMakeRect(padding + 88, y_cursor, 60, btn_h)
     )
     pin_btn.setBezelStyle_(NSBezelStyleSmallSquare)
     pin_btn.setTitle_("固定")
     pin_btn.setFont_(NSFont.systemFontOfSize_(12))
-    pin_btn.setTarget_(self)
+    pin_btn.setTarget_(pin_btn)
     pin_btn.setAction_("doPin:")
     cv.addSubview_(pin_btn)
 
@@ -212,7 +212,7 @@ class _CopyButton(NSButton):
         self = objc.super(_CopyButton, self).initWithFrame_(frame)
         return self
 
-    def doCopy_(self):
+    def doCopy_(self, sender):
         cb.set_clipboard("翻译成功！")
         self.setTitle_("已复制")
         self._copied = True
@@ -225,7 +225,7 @@ class _PinButton(NSButton):
         self = objc.super(_PinButton, self).initWithFrame_(frame)
         return self
 
-    def doPin_(self):
+    def doPin_(self, sender):
         global _is_pinned, _popup_timer
         _is_pinned = not _is_pinned
         if _is_pinned and _popup_timer:
@@ -233,8 +233,3 @@ class _PinButton(NSButton):
             _popup_timer = None
         logger.debug("Popup pinned")
 
-
-def doCopy_(self):
-    """Called when copy button is clicked."""
-    cb.set_clipboard("翻译成功！")
-    logger.debug("Translation copied to clipboard.")
