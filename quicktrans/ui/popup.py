@@ -92,7 +92,17 @@ def show(translated: str, x: float, y: float, config: SimpleNamespace) -> None:
     cv.setWantsLayer_(True)
     cv.layer().setCornerRadius_(12)
     cv.layer().setMasksToBounds_(True)
-    cv.layer().setBackgroundColor_(NSColor.windowBackgroundColor().CGColor())
+
+    # Dark mode detection
+    appearance = NSAppearance.currentAppearance()
+    is_dark = "Dark" in (appearance.name() or "")
+    if is_dark:
+        bg_color = NSColor.colorWithRed_green_blue_alpha_(0.15, 0.15, 0.17, 1.0)
+        text_color = NSColor.colorWithRed_green_blue_alpha_(0.92, 0.92, 0.92, 1.0)
+    else:
+        bg_color = NSColor.windowBackgroundColor()
+        text_color = NSColor.labelColor()
+    cv.layer().setBackgroundColor_(bg_color.CGColor())
 
     # Text view (bottom-up layout in AppKit)
     tv = NSTextView.alloc().initWithFrame_(
@@ -103,7 +113,7 @@ def show(translated: str, x: float, y: float, config: SimpleNamespace) -> None:
     tv.setEditable_(False)
     tv.setSelectable_(True)
     tv.setDrawsBackground_(False)
-    tv.setTextColor_(NSColor.labelColor())
+    tv.setTextColor_(text_color)
     tv.setTextContainerInset_((0, 0))
     tv.textContainer().setLineFragmentPadding_(0)
     cv.addSubview_(tv)
@@ -132,12 +142,94 @@ def show(translated: str, x: float, y: float, config: SimpleNamespace) -> None:
 
     _popup_window.orderFrontRegardless()
 
+    # Dynamic duration: base 5s + 1s per 50 chars
+    duration = max(5.0, config.popup_duration * 0.5 + len(translated) / 50.0)
+
     _popup_timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
-        config.popup_duration,
+        duration,
         NSApplication.sharedApplication().delegate(),
         "dismissPopup:", None, False,
     )
     logger.debug("Popup shown at (%d, %d)", int(x), int(y))
+
+
+def show_error(message: str, x: float, y: float, config: SimpleNamespace) -> None:
+    """Show a floating error popup with retry hint."""
+    global _popup_window, _popup_timer, _is_pinned
+    dismiss()
+    _is_pinned = False
+
+    font = NSFont.systemFontOfSize_(config.font_size - 2)
+    padding = 18
+    max_w = 360
+
+    tv_measure = NSTextView.alloc().initWithFrame_(NSMakeRect(0, 0, max_w - padding * 2, 1000))
+    tv_measure.setString_(message)
+    tv_measure.setFont_(font)
+    tv_measure.setEditable_(False)
+    tv_measure.setDrawsBackground_(False)
+    tv_measure.setTextContainerInset_((0, 0))
+    tv_measure.textContainer().setLineFragmentPadding_(0)
+    tv_measure.textContainer().setWidthTracksTextView_(True)
+    tv_measure.layoutManager().ensureLayoutForTextContainer_(tv_measure.textContainer())
+    used = tv_measure.layoutManager().usedRectForTextContainer_(tv_measure.textContainer())
+    text_h = used.size.height
+    text_w = min(max_w - padding * 2, used.size.width)
+
+    win_w = text_w + padding * 2 + 4
+    win_h = text_h + padding * 2 + 12
+
+    screen = NSScreen.mainScreen()
+    if screen:
+        scr_h = screen.frame().size.height
+        scr_w = screen.frame().size.width
+        win_x = x + 12
+        win_y = scr_h - y - win_h - 8
+        if win_x + win_w > scr_w:
+            win_x = x - win_w - 12
+        if win_y < 0:
+            win_y = scr_h - y + 12
+    else:
+        win_x, win_y = x + 12, y + 12
+
+    frame = NSMakeRect(win_x, win_y, win_w, win_h)
+    _popup_window = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
+        frame, NSWindowStyleMaskBorderless, NSBackingStoreBuffered, False,
+    )
+    _popup_window.setLevel_(NSFloatingWindowLevel)
+    _popup_window.setOpaque_(False)
+    _popup_window.setHasShadow_(True)
+    _popup_window.setAlphaValue_(0.96)
+    _popup_window.setMovableByWindowBackground_(True)
+
+    cv = _popup_window.contentView()
+    cv.setWantsLayer_(True)
+    cv.layer().setCornerRadius_(12)
+    cv.layer().setMasksToBounds_(True)
+    # Red-tinted background for error
+    cv.layer().setBackgroundColor_(NSColor.colorWithRed_green_blue_alpha_(0.98, 0.95, 0.95, 1.0).CGColor())
+
+    tv = NSTextView.alloc().initWithFrame_(
+        NSMakeRect(padding, padding, text_w + 4, text_h + 4)
+    )
+    tv.setString_(message)
+    tv.setFont_(font)
+    tv.setEditable_(False)
+    tv.setSelectable_(False)
+    tv.setDrawsBackground_(False)
+    tv.setTextColor_(NSColor.colorWithRed_green_blue_alpha_(0.8, 0.1, 0.1, 1.0))
+    tv.setTextContainerInset_((0, 0))
+    tv.textContainer().setLineFragmentPadding_(0)
+    cv.addSubview_(tv)
+
+    _popup_window.orderFrontRegardless()
+
+    _popup_timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
+        4.0,
+        NSApplication.sharedApplication().delegate(),
+        "dismissPopup:", None, False,
+    )
+    logger.debug("Error popup shown: %s", message)
 
 
 def dismiss(_=None) -> None:

@@ -22,7 +22,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "min_text_length": 1,
     "popup_duration": 12,
     "font_size": 16,
-    "icon_size": 26,
+    "icon_size": 44,
     "icon_dismiss_delay": 5,
     "log_max_bytes": 1048576,
     "log_backup_count": 3,

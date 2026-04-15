@@ -75,12 +75,16 @@ def _do_translate():
 
     logger.info("Translating: %s...", text[:60])
     mx, my = _get_mouse_pos()
-    translated = translate.translate_text(text, _config)
+    translated, error = translate.translate_text(text, _config)
 
     if _pending_old_clipboard:
         clipboard.set_clipboard(_pending_old_clipboard)
 
-    if translated and translated.strip() != text.strip():
+    if error:
+        logger.error("Translation failed: %s", error)
+        AppHelper.callAfter(trigger.dismiss)
+        AppHelper.callAfter(popup.show_error, error, mx, my, _config)
+    elif translated and translated.strip() != text.strip():
         _last_translated = text
         logger.info("Result: %s...", translated[:60])
         AppHelper.callAfter(trigger.dismiss)
