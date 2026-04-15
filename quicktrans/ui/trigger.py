@@ -118,49 +118,49 @@ class TriggerView(NSView):
 
 
 def show(x: float, y: float, config: SimpleNamespace, on_click) -> None:
-        """Show trigger icon near mouse position."""
-        global _trigger_window, _trigger_timer, _on_click_callback, _config, _trigger_view
-        dismiss()
+    """Show trigger icon near mouse position."""
+    global _trigger_window, _trigger_timer, _on_click_callback, _config, _trigger_view
+    dismiss()
 
-        _config = config
-        _on_click_callback = on_click
-        icon_size = config.icon_size
+    _config = config
+    _on_click_callback = on_click
+    icon_size = config.icon_size
 
-        screen = NSScreen.mainScreen()
-        if not screen:
-            return
-        scr_h = screen.frame().size.height
-        scr_w = screen.frame().size.width
+    screen = NSScreen.mainScreen()
+    if not screen:
+        return
+    scr_h = screen.frame().size.height
+    scr_w = screen.frame().size.width
 
-        win_x = x + 8
-        win_y = scr_h - y - icon_size - 8
-        if win_x + icon_size > scr_w:
-            win_x = x - icon_size - 8
-        if win_y < 0:
-            win_y = scr_h - y + 8
+    win_x = x + 8
+    win_y = scr_h - y - icon_size - 8
+    if win_x + icon_size > scr_w:
+        win_x = x - icon_size - 8
+    if win_y < 0:
+        win_y = scr_h - y + 8
 
-        frame = NSMakeRect(win_x, win_y, icon_size, icon_size)
-        _trigger_window = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
-            frame, NSWindowStyleMaskBorderless, NSBackingStoreBuffered, False,
-        )
-        _trigger_window.setLevel_(NSFloatingWindowLevel + 1)
-        _trigger_window.setOpaque_(False)
-        _trigger_window.setBackgroundColor_(NSColor.clearColor())
-        _trigger_window.setHasShadow_(True)
-        _trigger_window.setIgnoresMouseEvents_(False)
-        _trigger_window.setWantsLayer_(True)
-        _trigger_window.layer().setCornerRadius_(8)
+    frame = NSMakeRect(win_x, win_y, icon_size, icon_size)
+    _trigger_window = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
+        frame, NSWindowStyleMaskBorderless, NSBackingStoreBuffered, False,
+    )
+    _trigger_window.setLevel_(NSFloatingWindowLevel + 1)
+    _trigger_window.setOpaque_(False)
+    _trigger_window.setBackgroundColor_(NSColor.clearColor())
+    _trigger_window.setHasShadow_(True)
+    _trigger_window.setIgnoresMouseEvents_(False)
+    _trigger_window.setWantsLayer_(True)
+    _trigger_window.layer().setCornerRadius_(8)
 
-        tv = TriggerView.alloc().initWithFrame_(NSMakeRect(0, 0, icon_size, icon_size))
-        _trigger_window.contentView().addSubview_(tv)
-        _trigger_window.orderFrontRegardless()
+    tv = TriggerView.alloc().initWithFrame_(NSMakeRect(0, 0, icon_size, icon_size))
+    _trigger_window.contentView().addSubview_(tv)
+    _trigger_window.orderFrontRegardless()
 
-        _trigger_timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
-            config.icon_dismiss_delay,
-            NSApplication.sharedApplication().delegate(),
-            "dismissTrigger:", None, False,
-        )
-        logger.debug("Trigger shown at (%d, %d)", int(x), int(y))
+    _trigger_timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
+        config.icon_dismiss_delay,
+        NSApplication.sharedApplication().delegate(),
+        "dismissTrigger:", None, False,
+    )
+    logger.debug("Trigger shown at (%d, %d)", int(x), int(y))
 
 
 def show_loading() -> None:
