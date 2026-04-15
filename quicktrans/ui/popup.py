@@ -211,19 +211,19 @@ def show(translated: str, x: float, y: float, config: SimpleNamespace) -> None:
     btn_bar_h = btn_h + 14
 
     if is_dark:
-        bg_color      = NSColor.colorWithRed_green_blue_alpha_(0.13, 0.13, 0.15, 0.96)
-        border_color  = NSColor.colorWithRed_green_blue_alpha_(1.0,  1.0,  1.0,  0.10)
-        text_color    = NSColor.colorWithRed_green_blue_alpha_(0.92, 0.92, 0.92, 1.0)
-        btn_normal    = NSColor.colorWithRed_green_blue_alpha_(0.26, 0.26, 0.30, 1.0)
-        btn_hover     = NSColor.colorWithRed_green_blue_alpha_(0.36, 0.36, 0.42, 1.0)
-        btn_text      = NSColor.colorWithRed_green_blue_alpha_(0.78, 0.78, 0.78, 1.0)
+        bg_color      = NSColor.colorWithRed_green_blue_alpha_(0.15, 0.14, 0.12, 0.96)
+        border_color  = NSColor.colorWithRed_green_blue_alpha_(1.0,  0.95, 0.85, 0.10)
+        text_color    = NSColor.colorWithRed_green_blue_alpha_(0.90, 0.87, 0.80, 1.0)
+        btn_normal    = NSColor.colorWithRed_green_blue_alpha_(0.26, 0.24, 0.20, 1.0)
+        btn_hover     = NSColor.colorWithRed_green_blue_alpha_(0.36, 0.33, 0.27, 1.0)
+        btn_text      = NSColor.colorWithRed_green_blue_alpha_(0.75, 0.72, 0.65, 1.0)
     else:
-        bg_color      = NSColor.colorWithRed_green_blue_alpha_(0.98, 0.98, 1.00, 0.96)
-        border_color  = NSColor.colorWithRed_green_blue_alpha_(0.0,  0.0,  0.0,  0.09)
-        text_color    = NSColor.colorWithRed_green_blue_alpha_(0.12, 0.12, 0.14, 1.0)
-        btn_normal    = NSColor.colorWithRed_green_blue_alpha_(0.88, 0.88, 0.92, 1.0)
-        btn_hover     = NSColor.colorWithRed_green_blue_alpha_(0.78, 0.78, 0.86, 1.0)
-        btn_text      = NSColor.colorWithRed_green_blue_alpha_(0.30, 0.30, 0.36, 1.0)
+        bg_color      = NSColor.colorWithRed_green_blue_alpha_(0.97, 0.95, 0.88, 0.97)
+        border_color  = NSColor.colorWithRed_green_blue_alpha_(0.60, 0.50, 0.30, 0.18)
+        text_color    = NSColor.colorWithRed_green_blue_alpha_(0.22, 0.18, 0.10, 1.0)
+        btn_normal    = NSColor.colorWithRed_green_blue_alpha_(0.88, 0.84, 0.74, 1.0)
+        btn_hover     = NSColor.colorWithRed_green_blue_alpha_(0.78, 0.73, 0.60, 1.0)
+        btn_text      = NSColor.colorWithRed_green_blue_alpha_(0.35, 0.28, 0.15, 1.0)
 
     # Line spacing
     para_style = NSMutableParagraphStyle.alloc().init()
