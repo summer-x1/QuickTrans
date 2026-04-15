@@ -277,6 +277,7 @@ def show(translated: str, x: float, y: float, config: SimpleNamespace) -> None:
     tv = NSTextView.alloc().initWithFrame_(
         NSMakeRect(padding, padding + btn_bar_h, win_w - padding * 2, text_h + 4)
     )
+    tv.textStorage().setAttributedString_(attr_str)
     tv.setEditable_(False)
     tv.setSelectable_(True)
     tv.setDrawsBackground_(False)
