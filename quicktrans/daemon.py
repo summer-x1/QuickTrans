@@ -125,7 +125,7 @@ def _handle_selection():
             _pending_old_clipboard = old_cb
             logger.debug("Got text via clipboard: %s...", text[:40])
 
-        if text == _last_translated:
+        if text == _last_translated and popup.is_visible():
             if _pending_old_clipboard:
                 clipboard.set_clipboard(_pending_old_clipboard)
             return

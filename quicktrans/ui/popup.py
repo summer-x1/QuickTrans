@@ -236,9 +236,11 @@ def show(translated: str, x: float, y: float, config: SimpleNamespace) -> None:
     attr_str = NSAttributedString.alloc().initWithString_attributes_(translated, attrs)
 
     text_w, text_h = _measure(translated, font, content_w)
-    text_h = text_h * 1.35  # account for line spacing
+    text_h = text_h * 1.35
 
-    win_w = min(max_w, text_w + padding * 2 + 4)
+    win_w = text_w + padding * 2 + 4
+    # Clamp between a min width and max
+    win_w = max(200, min(max_w, win_w))
     win_h = text_h + padding * 2 + btn_bar_h
 
     # Position near mouse
@@ -275,7 +277,6 @@ def show(translated: str, x: float, y: float, config: SimpleNamespace) -> None:
     tv = NSTextView.alloc().initWithFrame_(
         NSMakeRect(padding, padding + btn_bar_h, win_w - padding * 2, text_h + 4)
     )
-    tv.textStorage().setAttributedString_(attr_str)
     tv.setEditable_(False)
     tv.setSelectable_(True)
     tv.setDrawsBackground_(False)
@@ -374,6 +375,11 @@ def show_error(message: str, x: float, y: float, config: SimpleNamespace) -> Non
         "dismissPopup:", None, False,
     )
     logger.debug("Error popup shown: %s", message)
+
+
+def is_visible() -> bool:
+    """Return True if popup is currently shown."""
+    return _popup_window is not None
 
 
 def dismiss(_=None) -> None:
