@@ -96,13 +96,45 @@ class TriggerView(NSView):
         icon_size = _config.icon_size if _config else 26
 
         if loading:
-            NSColor.systemGrayColor().setFill()
+            # Add spinner
+            spinner_size = icon_size * 0.55
+            offset = (icon_size - spinner_size) / 2
+            self._spinner = NSProgressIndicator.alloc().initWithFrame_(
+                NSMakeRect(offset, offset, spinner_size, spinner_size)
+            )
+            self._spinner.setStyle_(NSProgressIndicatorSpinningStyle)
+            self._spinner.setControlSize_(NSControlSizeSmall)
+            self._spinner.setIndeterminate_(True)
+            self._spinner.setDisplayedWhenStopped_(False)
+            self.addSubview_(self._spinner)
+            self._spinner.startAnimation_(None)
         else:
-            NSColor.controlAccentColor().setFill()
-        self.setWantsLayer_(True)
-        self.layer().setCornerRadius_(8)  # Rounded square
+            if self._spinner:
+                self._spinner.stopAnimation_(None)
+                self._spinner.removeFromSuperview()
+                self._spinner = None
 
-        # Draw "译" text
+        self.setNeedsDisplay_(True)
+
+    def drawRect_(self, rect):
+        icon_size = _config.icon_size if _config else 26
+
+        # Background — rounded square via bezier path with corner radius
+        corner_radius = icon_size * 0.3
+        bg_rect = self.bounds()
+        path = NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
+            bg_rect, corner_radius, corner_radius
+        )
+
+        if self.loading:
+            NSColor.systemGrayColor().setFill()
+        elif self.hovered:
+            NSColor.controlAccentColor().setFill()
+        else:
+            NSColor.systemBlueColor().setFill()
+        path.fill()
+
+        # Draw "译" text (hidden when loading — spinner covers it)
         if not self.loading:
             font = NSFont.boldSystemFontOfSize_(icon_size * 0.5)
             style = NSMutableParagraphStyle.alloc().init()
@@ -148,11 +180,9 @@ def show(x: float, y: float, config: SimpleNamespace, on_click) -> None:
     _trigger_window.setBackgroundColor_(NSColor.clearColor())
     _trigger_window.setHasShadow_(True)
     _trigger_window.setIgnoresMouseEvents_(False)
-    _trigger_window.setWantsLayer_(True)
-    _trigger_window.layer().setCornerRadius_(8)
 
-    tv = TriggerView.alloc().initWithFrame_(NSMakeRect(0, 0, icon_size, icon_size))
-    _trigger_window.contentView().addSubview_(tv)
+    _trigger_view = TriggerView.alloc().initWithFrame_(NSMakeRect(0, 0, icon_size, icon_size))
+    _trigger_window.contentView().addSubview_(_trigger_view)
     _trigger_window.orderFrontRegardless()
 
     _trigger_timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
@@ -164,14 +194,13 @@ def show(x: float, y: float, config: SimpleNamespace, on_click) -> None:
 
 
 def show_loading() -> None:
-    """Switch to trigger icon to loading state."""
+    """Switch trigger icon to loading state."""
+    global _trigger_timer
     if _trigger_view:
         _trigger_view.setLoading_(True)
-        # Cancel auto-dismiss timer while loading
-        global _trigger_timer
-        if _trigger_timer:
-            _trigger_timer.invalidate()
-            _trigger_timer = None
+    if _trigger_timer:
+        _trigger_timer.invalidate()
+        _trigger_timer = None
 
 
 def dismiss(_=None) -> None:
