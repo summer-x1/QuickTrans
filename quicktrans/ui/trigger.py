@@ -1,4 +1,6 @@
-"""Trigger icon — small floating '译' button shown after text selection."""
+"""Trigger icon — rounded square button with '译' shown after text selection."""
+
+from __future__ import annotations
 
 import logging
 from types import SimpleNamespace
@@ -43,7 +45,7 @@ _trigger_view = None
 
 
 class TriggerView(NSView):
-    """A small round button with '译' that triggers translation on click."""
+    """A rounded square button with '译' that triggers translation on click."""
 
     def initWithFrame_(self, frame):
         self = objc.super(TriggerView, self).initWithFrame_(frame)
@@ -94,39 +96,13 @@ class TriggerView(NSView):
         icon_size = _config.icon_size if _config else 26
 
         if loading:
-            # Add spinner
-            spinner_size = icon_size * 0.55
-            offset = (icon_size - spinner_size) / 2
-            self._spinner = NSProgressIndicator.alloc().initWithFrame_(
-                NSMakeRect(offset, offset, spinner_size, spinner_size)
-            )
-            self._spinner.setStyle_(NSProgressIndicatorSpinningStyle)
-            self._spinner.setControlSize_(NSControlSizeSmall)
-            self._spinner.setIndeterminate_(True)
-            self._spinner.setDisplayedWhenStopped_(False)
-            self.addSubview_(self._spinner)
-            self._spinner.startAnimation_(None)
-        else:
-            if self._spinner:
-                self._spinner.stopAnimation_(None)
-                self._spinner.removeFromSuperview()
-                self._spinner = None
-
-        self.setNeedsDisplay_(True)
-
-    def drawRect_(self, rect):
-        icon_size = _config.icon_size if _config else 26
-
-        # Background circle
-        if self.loading:
             NSColor.systemGrayColor().setFill()
-        elif self.hovered:
-            NSColor.controlAccentColor().setFill()
         else:
-            NSColor.systemBlueColor().setFill()
-        NSBezierPath.bezierPathWithOvalInRect_(self.bounds()).fill()
+            NSColor.controlAccentColor().setFill()
+        self.setWantsLayer_(True)
+        self.layer().setCornerRadius_(8)  # Rounded square
 
-        # Draw "译" text (hidden when loading — spinner covers it)
+        # Draw "译" text
         if not self.loading:
             font = NSFont.boldSystemFontOfSize_(icon_size * 0.5)
             style = NSMutableParagraphStyle.alloc().init()
@@ -140,64 +116,65 @@ class TriggerView(NSView):
             h = s.size().height
             s.drawInRect_(NSMakeRect(0, (icon_size - h) / 2 - 1, icon_size, h))
 
+    def show(x: float, y: float, config: SimpleNamespace, on_click) -> None:
+        """Show trigger icon near mouse position."""
+        global _trigger_window, _trigger_timer, _on_click_callback, _config, _trigger_view
+        dismiss()
 
-def show(x: float, y: float, config: SimpleNamespace, on_click) -> None:
-    """Show the trigger icon near the mouse position."""
-    global _trigger_window, _trigger_timer, _on_click_callback, _config, _trigger_view
-    dismiss()
+        _config = config
+        _on_click_callback = on_click
+        icon_size = config.icon_size
 
-    _config = config
-    _on_click_callback = on_click
-    icon_size = config.icon_size
+        screen = NSScreen.mainScreen()
+        if not screen:
+            return
+        scr_h = screen.frame().size.height
+        scr_w = screen.frame().size.width
 
-    screen = NSScreen.mainScreen()
-    if not screen:
-        return
-    scr_h = screen.frame().size.height
-    scr_w = screen.frame().size.width
+        win_x = x + 8
+        win_y = scr_h - y - icon_size - 8
+        if win_x + icon_size > scr_w:
+            win_x = x - icon_size - 8
+        if win_y < 0:
+            win_y = scr_h - y + 8
 
-    win_x = x + 8
-    win_y = scr_h - y - icon_size - 8
-    if win_x + icon_size > scr_w:
-        win_x = x - icon_size - 8
-    if win_y < 0:
-        win_y = scr_h - y + 8
+        frame = NSMakeRect(win_x, win_y, icon_size, icon_size)
+        _trigger_window = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
+            frame, NSWindowStyleMaskBorderless, NSBackingStoreBuffered, False,
+        )
+        _trigger_window.setLevel_(NSFloatingWindowLevel + 1)
+        _trigger_window.setOpaque_(False)
+        _trigger_window.setBackgroundColor_(NSColor.clearColor())
+        _trigger_window.setHasShadow_(True)
+        _trigger_window.setIgnoresMouseEvents_(False)
+        _trigger_window.setWantsLayer_(True)
+        _trigger_window.layer().setCornerRadius_(8)
 
-    frame = NSMakeRect(win_x, win_y, icon_size, icon_size)
-    _trigger_window = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
-        frame, NSWindowStyleMaskBorderless, NSBackingStoreBuffered, False,
-    )
-    _trigger_window.setLevel_(NSFloatingWindowLevel + 1)
-    _trigger_window.setOpaque_(False)
-    _trigger_window.setBackgroundColor_(NSColor.clearColor())
-    _trigger_window.setHasShadow_(True)
-    _trigger_window.setIgnoresMouseEvents_(False)
+        tv = TriggerView.alloc().initWithFrame_(NSMakeRect(0, 0, icon_size, icon_size))
+        _trigger_window.contentView().addSubview_(tv)
+        _trigger_window.orderFrontRegardless()
 
-    _trigger_view = TriggerView.alloc().initWithFrame_(NSMakeRect(0, 0, icon_size, icon_size))
-    _trigger_window.contentView().addSubview_(_trigger_view)
-    _trigger_window.orderFrontRegardless()
-
-    _trigger_timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
-        config.icon_dismiss_delay,
-        NSApplication.sharedApplication().delegate(),
-        "dismissTrigger:", None, False,
-    )
-    logger.debug("Trigger shown at (%d, %d)", int(x), int(y))
+        _trigger_timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
+            config.icon_dismiss_delay,
+            NSApplication.sharedApplication().delegate(),
+            "dismissTrigger:", None, False,
+        )
+        logger.debug("Trigger shown at (%d, %d)", int(x), int(y))
 
 
 def show_loading() -> None:
-    """Switch the trigger icon to loading state."""
+    """Switch to trigger icon to loading state."""
     if _trigger_view:
         _trigger_view.setLoading_(True)
-    # Cancel auto-dismiss timer while loading
-    global _trigger_timer
-    if _trigger_timer:
-        _trigger_timer.invalidate()
-        _trigger_timer = None
+        # Cancel auto-dismiss timer while loading
+        global _trigger_timer
+        if _trigger_timer:
+            _trigger_timer.invalidate()
+            _trigger_timer = None
 
 
 def dismiss(_=None) -> None:
-    """Dismiss the trigger icon."""
+    """Dismiss trigger icon."""
     global _trigger_window, _trigger_timer, _trigger_view
     if _trigger_window:
         _trigger_window.orderOut_(None)

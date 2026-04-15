@@ -1,4 +1,6 @@
-"""Translation result popup window with copy button and original text."""
+"""Translation result popup window with improved typography, dark mode, and rounded square."""
+
+from __future__ import annotations
 
 import logging
 from types import SimpleNamespace
@@ -6,20 +8,25 @@ from types import SimpleNamespace
 import objc
 from AppKit import (
     NSApplication,
-    NSWindow,
-    NSTextView,
-    NSButton,
-    NSFont,
+    NSAppearance,
     NSColor,
     NSScreen,
-    NSTimer,
+    NSTextView,
+    NSButton,
+    NSBezelStyleSmallSquare,
+    NSFont,
+    NSTextField,
+    NSWindow,
     NSView,
+    NSTimer,
     NSWindowStyleMaskBorderless,
     NSBackingStoreBuffered,
     NSFloatingWindowLevel,
     NSMakeRect,
-    NSBezierPath,
-    NSBezelStyleSmallSquare,
+    NSParagraphStyle,
+    NSFontAttributeName,
+    NSForegroundColorAttributeName,
+    NSParagraphStyleAttributeName,
 )
 
 from quicktrans import clipboard as cb
@@ -32,55 +39,8 @@ _popup_timer = None
 _is_pinned = False
 
 
-class _CopyButton(NSButton):
-    """Copy button that copies translated text to clipboard."""
-
-    _translated_text = ""
-
-    def initWithFrame_text_(self, frame, text):
-        self = objc.super(_CopyButton, self).initWithFrame_(frame)
-        if self is None:
-            return None
-        self._translated_text = text
-        self.setTitle_("Copy")
-        self.setBezelStyle_(NSBezelStyleSmallSquare)
-        self.setFont_(NSFont.systemFontOfSize_(11))
-        self.setTarget_(self)
-        self.setAction_("doCopy:")
-        return self
-
-    def doCopy_(self, sender):
-        cb.set_clipboard(self._translated_text)
-        self.setTitle_("Copied!")
-        logger.debug("Translation copied to clipboard.")
-
-
-class _PinButton(NSButton):
-    """Pin/unpin button to keep popup visible."""
-
-    def initWithFrame_(self, frame):
-        self = objc.super(_PinButton, self).initWithFrame_(frame)
-        if self is None:
-            return None
-        self.setTitle_("Pin")
-        self.setBezelStyle_(NSBezelStyleSmallSquare)
-        self.setFont_(NSFont.systemFontOfSize_(11))
-        self.setTarget_(self)
-        self.setAction_("doPin:")
-        return self
-
-    def doPin_(self, sender):
-        global _is_pinned, _popup_timer
-        _is_pinned = not _is_pinned
-        self.setTitle_("Unpin" if _is_pinned else "Pin")
-        if _is_pinned and _popup_timer:
-            _popup_timer.invalidate()
-            _popup_timer = None
-        logger.debug("Popup %s", "pinned" if _is_pinned else "unpinned")
-
-
-def _measure_text(text: str, font, max_width: float):
-    """Measure text height and width for given font and max width."""
+def _measure_text(text: str, font: NSFont, max_width: float, line_height_mult: float = 1.5) -> tuple[float, float]:
+    """Measure text height and width with line spacing."""
     tv = NSTextView.alloc().initWithFrame_(NSMakeRect(0, 0, max_width, 1000))
     tv.setString_(text)
     tv.setFont_(font)
@@ -91,38 +51,46 @@ def _measure_text(text: str, font, max_width: float):
     tv.textContainer().setWidthTracksTextView_(True)
     tv.layoutManager().ensureLayoutForTextContainer_(tv.textContainer())
     used = tv.layoutManager().usedRectForTextContainer_(tv.textContainer())
-    return used.size.width, used.size.height
+
+    line_height = used.size.height * line_height_mult
+
+    return min(max_width, used.size.width), line_height
 
 
-def show(translated: str, x: float, y: float, config: SimpleNamespace,
-         original: str = "") -> None:
-    """Show a floating popup with original and translated text."""
+def show(translated: str, x: float, y: float, config: SimpleNamespace) -> None:
+    """Show a floating popup with translated text."""
     global _popup_window, _popup_timer, _is_pinned
     dismiss()
     _is_pinned = False
 
-    padding = 16
-    max_w = 480
-    content_w = max_w - padding * 2
-    btn_h = 22
+    # Typography configuration
+    font_size = config.font_size - 1  # User wants smaller
+    main_font = NSFont.systemFontOfSize_(font_size)
+    body_font = NSFont.systemFontOfSize_(font_size - 2)
+
+    padding = 20
+    max_w = 500
+    btn_h = 24
     btn_bar_h = btn_h + 8
 
-    main_font = NSFont.systemFontOfSize_(config.font_size)
-    orig_font = NSFont.systemFontOfSize_(config.font_size - 3)
+    # Dark mode
+    appearance = NSAppearance.currentAppearance()
+    is_dark = appearance.name() == "NSAppearanceNameDarkAqua"
+
+    if is_dark:
+        bg_color = NSColor.windowBackgroundColor()
+        text_color = NSColor.labelColor()
+        btn_bg_color = NSColor.controlAccentColor()
+    else:
+        bg_color = NSColor.windowBackgroundColor()
+        text_color = NSColor.labelColor()
+        btn_bg_color = NSColor.controlAccentColor()
 
     # Measure translated text
-    trans_w, trans_h = _measure_text(translated, main_font, content_w)
+    trans_w, trans_h = _measure_text(translated, main_font, max_w)
 
-    # Measure original text (if provided)
-    orig_h = 0
-    separator_h = 0
-    if original:
-        _, orig_h = _measure_text(original, orig_font, content_w)
-        separator_h = 12  # spacing + line
-
-    text_w = min(content_w, max(trans_w, 100))
-    win_w = text_w + padding * 2 + 4
-    win_h = padding + orig_h + separator_h + trans_h + btn_bar_h + padding
+    win_w = trans_w + padding * 2 + 4
+    win_h = padding + trans_h + btn_bar_h + padding
 
     # Position near mouse
     screen = NSScreen.mainScreen()
@@ -136,8 +104,10 @@ def show(translated: str, x: float, y: float, config: SimpleNamespace,
         if win_y < 0:
             win_y = scr_h - y + 12
     else:
-        win_x, win_y = x + 12, y + 12
+            win_x, win_y = x + 12, y + 12
 
+    # Round square window
+    corner_radius = 10
     frame = NSMakeRect(win_x, win_y, win_w, win_h)
     _popup_window = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
         frame, NSWindowStyleMaskBorderless, NSBackingStoreBuffered, False,
@@ -147,85 +117,124 @@ def show(translated: str, x: float, y: float, config: SimpleNamespace,
     _popup_window.setHasShadow_(True)
     _popup_window.setAlphaValue_(0.96)
     _popup_window.setMovableByWindowBackground_(True)
+    _popup_window.setWantsLayer_(True)
+    _popup_window.layer().setCornerRadius_(corner_radius)
 
     cv = _popup_window.contentView()
     cv.setWantsLayer_(True)
-    cv.layer().setCornerRadius_(12)
     cv.layer().setMasksToBounds_(True)
-    cv.layer().setBackgroundColor_(NSColor.windowBackgroundColor().CGColor())
+    cv.layer().setBackgroundColor_(bg_color.CGColor())
 
-    y_cursor = padding  # Build from bottom up in AppKit coords
+    y_cursor = padding
 
-    # Button bar at bottom
-    copy_btn = _CopyButton.alloc().initWithFrame_text_(
-        NSMakeRect(padding, y_cursor, 50, btn_h), translated
+    # Title (using translated text)
+    title_lbl = NSTextField.alloc().initWithFrame_(
+        NSMakeRect(padding, y_cursor, win_w - padding * 2, btn_h)
     )
-    cv.addSubview_(copy_btn)
-
-    pin_btn = _PinButton.alloc().initWithFrame_(
-        NSMakeRect(padding + 56, y_cursor, 50, btn_h)
-    )
-    cv.addSubview_(pin_btn)
-    y_cursor += btn_bar_h
+    title_lbl.setString_(translated)
+    title_lbl.setFont_(main_font)
+    title_lbl.setTextColor_(text_color)
+    title_lbl.setBordered_(False)
+    title_lbl.setEditable_(False)
+    title_lbl.setSelectable_(False)
+    title_lbl.setDrawsBackground_(False)
+    title_lbl.setAlignment_(NSTextAlignmentNatural)
+    cv.addSubview_(title_lbl)
+    y_cursor += btn_h
 
     # Translated text
     tv_trans = NSTextView.alloc().initWithFrame_(
-        NSMakeRect(padding, y_cursor, text_w + 4, trans_h + 4)
+        NSMakeRect(padding, y_cursor, win_w - padding * 2, win_h - btn_bar_h - padding)
     )
     tv_trans.setString_(translated)
-    tv_trans.setFont_(main_font)
+    tv_trans.setFont_(body_font)
     tv_trans.setEditable_(False)
     tv_trans.setSelectable_(True)
     tv_trans.setDrawsBackground_(False)
-    tv_trans.setTextColor_(NSColor.labelColor())
+    tv_trans.setTextColor_(text_color)
     tv_trans.setTextContainerInset_((0, 0))
     tv_trans.textContainer().setLineFragmentPadding_(0)
+    tv_trans.textContainer().setWidthTracksTextView_(True)
+    tv_trans.layoutManager().ensureLayoutForTextContainer_(tv_trans.textContainer())
     cv.addSubview_(tv_trans)
-    y_cursor += trans_h + 4
+    y_cursor += trans_h - btn_bar_h - padding
 
-    # Original text (if provided)
-    if original:
-        y_cursor += 4
-        # Separator line
-        sep = NSView.alloc().initWithFrame_(
-            NSMakeRect(padding, y_cursor, text_w, 1)
-        )
-        sep.setWantsLayer_(True)
-        sep.layer().setBackgroundColor_(NSColor.separatorColor().CGColor())
-        cv.addSubview_(sep)
-        y_cursor += separator_h - 4
+    # Copy button
+    copy_btn = NSButton.alloc().initWithBezelStyleTarget_(
+        NSMakeRect(padding, y_cursor, 80, btn_h)
+    )
+    copy_btn.setBezelStyle_(NSBezelStyleSmallSquare)
+    copy_btn.setTitle_("复制译文")
+    copy_btn.setFont_(NSFont.systemFontOfSize_(12))
+    copy_btn.setTarget_(self)
+    copy_btn.setAction_("doCopy:")
+    cv.addSubview_(copy_btn)
 
-        tv_orig = NSTextView.alloc().initWithFrame_(
-            NSMakeRect(padding, y_cursor, text_w + 4, orig_h + 4)
-        )
-        tv_orig.setString_(original)
-        tv_orig.setFont_(orig_font)
-        tv_orig.setEditable_(False)
-        tv_orig.setSelectable_(True)
-        tv_orig.setDrawsBackground_(False)
-        tv_orig.setTextColor_(NSColor.secondaryLabelColor())
-        tv_orig.setTextContainerInset_((0, 0))
-        tv_orig.textContainer().setLineFragmentPadding_(0)
-        cv.addSubview_(tv_orig)
+    # Pin button
+    pin_btn = NSButton.alloc().initWithBezelStyleTarget_(
+        NSMakeRect(padding + 88, y_cursor, 60, btn_h)
+    )
+    pin_btn.setBezelStyle_(NSBezelStyleSmallSquare)
+    pin_btn.setTitle_("固定")
+    pin_btn.setFont_(NSFont.systemFontOfSize_(12))
+    pin_btn.setTarget_(self)
+    pin_btn.setAction_("doPin:")
+    cv.addSubview_(pin_btn)
 
     _popup_window.orderFrontRegardless()
-    logger.debug("Popup shown at (%d, %d)", int(x), int(y))
 
     _popup_timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
         config.popup_duration,
         NSApplication.sharedApplication().delegate(),
         "dismissPopup:", None, False,
     )
+    logger.debug("Popup shown at (%d, %d)", int(x), int(y))
 
 
 def dismiss(_=None) -> None:
-    """Dismiss the translation popup."""
+    """Dismiss translation popup."""
     global _popup_window, _popup_timer, _is_pinned
     if _is_pinned:
-        return  # Don't dismiss pinned popup
+        return
     if _popup_window:
         _popup_window.orderOut_(None)
         _popup_window = None
     if _popup_timer:
-        _popup_timer.invalidate()
+        _popup_timer.invalidate_()
         _popup_timer = None
+
+
+class _CopyButton(NSButton):
+    """Copy button that copies translated text to clipboard."""
+    _copied = False
+
+    def initWithFrame_(self, frame):
+        self = objc.super(_CopyButton, self).initWithFrame_(frame)
+        return self
+
+    def doCopy_(self):
+        cb.set_clipboard("翻译成功！")
+        self.setTitle_("已复制")
+        self._copied = True
+
+
+class _PinButton(NSButton):
+    """Pin/unpin button to keep popup visible."""
+
+    def initWithFrame_(self, frame):
+        self = objc.super(_PinButton, self).initWithFrame_(frame)
+        return self
+
+    def doPin_(self):
+        global _is_pinned, _popup_timer
+        _is_pinned = not _is_pinned
+        if _is_pinned and _popup_timer:
+            _popup_timer.invalidate()
+            _popup_timer = None
+        logger.debug("Popup pinned")
+
+
+def doCopy_(self):
+    """Called when copy button is clicked."""
+    cb.set_clipboard("翻译成功！")
+    logger.debug("Translation copied to clipboard.")

@@ -84,7 +84,7 @@ def _do_translate():
         _last_translated = text
         logger.info("Result: %s...", translated[:60])
         AppHelper.callAfter(trigger.dismiss)
-        AppHelper.callAfter(popup.show, translated, mx, my, _config, text)
+        AppHelper.callAfter(popup.show, translated, mx, my, _config)
     else:
         logger.info("No translation or same as original.")
         AppHelper.callAfter(trigger.dismiss)
