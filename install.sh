@@ -31,6 +31,7 @@ echo "Creating launcher at $LAUNCHER..."
 if [ -w "/usr/local/bin" ]; then
     cat > "$LAUNCHER" << LAUNCH
 #!/bin/bash
+export PYTHONPATH="$PROJECT_DIR:\$PYTHONPATH"
 exec python3 -m quicktrans "\$@"
 LAUNCH
     chmod +x "$LAUNCHER"
@@ -41,21 +42,6 @@ export PYTHONPATH="$PROJECT_DIR:\$PYTHONPATH"
 exec python3 -m quicktrans "\$@"
 LAUNCH
     sudo chmod +x "$LAUNCHER"
-fi
-
-# 6. Add PYTHONPATH to shell profile if needed
-SHELL_RC="$HOME/.zshrc"
-if [ -f "$HOME/.bashrc" ] && [ "$SHELL" = "/bin/bash" ]; then
-    SHELL_RC="$HOME/.bashrc"
-fi
-
-if ! grep -q "QUICKTRANS" "$SHELL_RC" 2>/dev/null; then
-    echo "" >> "$SHELL_RC"
-    echo "# QuickTrans" >> "$SHELL_RC"
-    echo "export PYTHONPATH=\"$PROJECT_DIR:\$PYTHONPATH\"" >> "$SHELL_RC"
-    echo "# Auto-start QuickTrans daemon (singleton via PID lock)" >> "$SHELL_RC"
-    echo "(quicktrans &) 2>/dev/null" >> "$SHELL_RC"
-    echo "Added auto-start to $SHELL_RC"
 fi
 
 echo
@@ -74,5 +60,11 @@ echo "  System Settings → Privacy & Security → Accessibility"
 echo "  → Enable your Terminal app"
 echo
 echo "--------------------------------------"
-echo "Run 'quicktrans' to start."
-echo "On first run, you'll be asked for your DeepL API key."
+echo "Start QuickTrans in either way:"
+echo "  1. Double-click $PROJECT_DIR/QuickTrans.command"
+echo "  2. Run 'quicktrans' in Terminal"
+echo
+echo "Auto-start is no longer enabled by default."
+echo "If you want it, add this line to your shell profile manually:"
+echo "  (quicktrans &) 2>/dev/null"
+echo "On first run, you'll be asked to choose a provider and enter API config."

@@ -34,8 +34,8 @@ class TestClipboard(unittest.TestCase):
     def test_copy_selection_fallback_to_cmd_c(self, mock_sleep, mock_run):
         from quicktrans.clipboard import copy_selection
 
-        with patch("quicktrans.clipboard.Quartz.AXUIElementCreateSystemWide") as mock_create:
-            with patch("quicktrans.clipboard.Quartz.AXUIElementCopyAttributeValue") as mock_copy:
+        with patch("quicktrans.clipboard.Quartz.AXUIElementCreateSystemWide", create=True) as mock_create:
+            with patch("quicktrans.clipboard.Quartz.AXUIElementCopyAttributeValue", create=True) as mock_copy:
                 # Mock AX API failure
                 mock_create.return_value = Mock()
                 mock_copy.return_value = (-1, None)  # AXFocusedApplication fails
@@ -45,6 +45,49 @@ class TestClipboard(unittest.TestCase):
                 self.assertIsNone(result)
                 # Should have called osascript for Cmd+C
                 self.assertTrue(any("osascript" in str(call) for call in mock_run.call_args_list))
+
+    @patch("quicktrans.clipboard.time.sleep")
+    @patch("quicktrans.clipboard.get_clipboard_change_count")
+    @patch("quicktrans.clipboard.get_clipboard")
+    def test_wait_for_new_clipboard_returns_changed_text(self, mock_get_clipboard, mock_change_count, mock_sleep):
+        from quicktrans.clipboard import wait_for_new_clipboard
+
+        mock_get_clipboard.side_effect = ["old", "old", "new value"]
+        mock_change_count.side_effect = [1, 1, 2]
+
+        result = wait_for_new_clipboard(1, "old", timeout=0.2, poll_interval=0.01)
+        self.assertEqual(result, "new value")
+
+    @patch("quicktrans.clipboard.time.sleep")
+    @patch("quicktrans.clipboard.time.time")
+    @patch("quicktrans.clipboard.get_clipboard_change_count")
+    @patch("quicktrans.clipboard.get_clipboard")
+    def test_wait_for_new_clipboard_times_out(self, mock_get_clipboard, mock_change_count, mock_time, mock_sleep):
+        from quicktrans.clipboard import wait_for_new_clipboard
+
+        mock_get_clipboard.return_value = "old"
+        mock_change_count.return_value = 1
+        mock_time.side_effect = [0.0, 0.05, 0.1, 0.15, 0.21]
+
+        result = wait_for_new_clipboard(1, "old", timeout=0.2, poll_interval=0.01)
+        self.assertIsNone(result)
+
+    @patch("quicktrans.clipboard.time.sleep")
+    @patch("quicktrans.clipboard.get_clipboard_change_count")
+    @patch("quicktrans.clipboard.get_clipboard")
+    def test_wait_for_new_clipboard_accepts_same_text_when_change_count_updates(
+        self,
+        mock_get_clipboard,
+        mock_change_count,
+        mock_sleep,
+    ):
+        from quicktrans.clipboard import wait_for_new_clipboard
+
+        mock_get_clipboard.return_value = "repeat"
+        mock_change_count.side_effect = [1, 1, 2]
+
+        result = wait_for_new_clipboard(1, "repeat", timeout=0.2, poll_interval=0.01)
+        self.assertEqual(result, "repeat")
 
 
 if __name__ == "__main__":

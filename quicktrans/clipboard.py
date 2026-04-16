@@ -8,6 +8,7 @@ import time
 from typing import Optional
 
 import Quartz
+from AppKit import NSPasteboard
 
 logger: logging.Logger = logging.getLogger("quicktrans")
 
@@ -21,6 +22,11 @@ def get_clipboard() -> str:
 def set_clipboard(text: str) -> None:
     """Write text to clipboard."""
     subprocess.run(["pbcopy"], input=text.encode("utf-8"))
+
+
+def get_clipboard_change_count() -> int:
+    """Return the current macOS pasteboard change count."""
+    return int(NSPasteboard.generalPasteboard().changeCount())
 
 
 def copy_selection() -> Optional[str]:
@@ -60,4 +66,23 @@ def copy_selection() -> Optional[str]:
         capture_output=True,
     )
     time.sleep(0.3)
+    return None
+
+
+def wait_for_new_clipboard(
+    previous_change_count: int,
+    previous_text: str,
+    timeout: float = 0.8,
+    poll_interval: float = 0.05,
+) -> Optional[str]:
+    """Wait briefly for clipboard contents to change after Cmd+C fallback."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        current_change_count = get_clipboard_change_count()
+        current = get_clipboard()
+        if current and current_change_count != previous_change_count:
+            return current
+        if current and current != previous_text:
+            return current
+        time.sleep(poll_interval)
     return None

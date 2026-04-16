@@ -1,4 +1,4 @@
-"""Trigger icon — rounded square button with '译' shown after text selection."""
+"""Trigger icon — minimal dot button shown after text selection."""
 
 from __future__ import annotations
 
@@ -8,9 +8,9 @@ from types import SimpleNamespace
 import objc
 from AppKit import (
     NSApplication,
+    NSAppearance,
     NSWindow,
     NSView,
-    NSFont,
     NSColor,
     NSScreen,
     NSTimer,
@@ -19,16 +19,10 @@ from AppKit import (
     NSFloatingWindowLevel,
     NSMakeRect,
     NSBezierPath,
-    NSMutableParagraphStyle,
-    NSFontAttributeName,
-    NSForegroundColorAttributeName,
-    NSParagraphStyleAttributeName,
-    NSCenterTextAlignment,
     NSTrackingArea,
     NSTrackingMouseEnteredAndExited,
     NSTrackingActiveAlways,
     NSCursor,
-    NSAttributedString,
     NSProgressIndicator,
     NSProgressIndicatorSpinningStyle,
     NSControlSizeSmall,
@@ -44,8 +38,34 @@ _config = None
 _trigger_view = None
 
 
+def _is_dark_mode() -> bool:
+    appearance = NSAppearance.currentAppearance()
+    return "Dark" in (appearance.name() or "")
+
+
+def _trigger_palette() -> dict[str, NSColor]:
+    """Trigger colors aligned with the popup's warm bubble palette."""
+    if _is_dark_mode():
+        bubble_fill = NSColor.colorWithRed_green_blue_alpha_(0.48, 0.38, 0.12, 0.98)
+        bubble_hover = NSColor.colorWithRed_green_blue_alpha_(0.63, 0.50, 0.16, 0.99)
+        bubble_border = NSColor.colorWithRed_green_blue_alpha_(1.00, 0.98, 0.94, 0.82)
+    else:
+        bubble_fill = NSColor.colorWithRed_green_blue_alpha_(0.56, 0.44, 0.12, 0.98)
+        bubble_hover = NSColor.colorWithRed_green_blue_alpha_(0.72, 0.58, 0.18, 0.98)
+        bubble_border = NSColor.colorWithRed_green_blue_alpha_(1.00, 0.99, 0.97, 0.92)
+
+    return {
+        "idle_fill": bubble_fill,
+        "idle_border": bubble_border,
+        "hover_fill": bubble_hover,
+        "hover_border": bubble_border,
+        "loading_fill": bubble_fill,
+        "loading_border": bubble_border,
+    }
+
+
 class TriggerView(NSView):
-    """A rounded square button with '译' that triggers translation on click."""
+    """A minimal circular trigger that starts translation on click."""
 
     def initWithFrame_(self, frame):
         self = objc.super(TriggerView, self).initWithFrame_(frame)
@@ -93,17 +113,19 @@ class TriggerView(NSView):
 
     def setLoading_(self, loading):
         self.loading = loading
-        icon_size = _config.icon_size if _config else 26
+        trigger_size = _trigger_size(_config)
 
         if loading:
-            # Add spinner
-            spinner_size = icon_size * 0.55
-            offset = (icon_size - spinner_size) / 2
+            palette = _trigger_palette()
+            spinner_size = trigger_size * 0.5
+            offset = (trigger_size - spinner_size) / 2
             self._spinner = NSProgressIndicator.alloc().initWithFrame_(
                 NSMakeRect(offset, offset, spinner_size, spinner_size)
             )
             self._spinner.setStyle_(NSProgressIndicatorSpinningStyle)
             self._spinner.setControlSize_(NSControlSizeSmall)
+            self._spinner.setAppearance_(NSAppearance.appearanceNamed_("NSAppearanceNameAqua"))
+            self._spinner.setAlphaValue_(0.95)
             self._spinner.setIndeterminate_(True)
             self._spinner.setDisplayedWhenStopped_(False)
             self.addSubview_(self._spinner)
@@ -117,36 +139,37 @@ class TriggerView(NSView):
         self.setNeedsDisplay_(True)
 
     def drawRect_(self, rect):
-        icon_size = _config.icon_size if _config else 26
-
-        # Background — rounded square via bezier path with corner radius
-        corner_radius = icon_size * 0.3
-        bg_rect = self.bounds()
-        path = NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
-            bg_rect, corner_radius, corner_radius
-        )
+        palette = _trigger_palette()
+        trigger_size = self.bounds().size.width
+        outer_inset = 1.5 if self.hovered else 2.5
+        outer_size = trigger_size - outer_inset * 2
+        outer_rect = NSMakeRect(outer_inset, outer_inset, outer_size, outer_size)
+        outer_path = NSBezierPath.bezierPathWithOvalInRect_(outer_rect)
 
         if self.loading:
-            NSColor.systemGrayColor().setFill()
+            fill_color = palette["loading_fill"]
+            border_color = palette["loading_border"]
         elif self.hovered:
-            NSColor.controlAccentColor().setFill()
+            fill_color = palette["hover_fill"]
+            border_color = palette["hover_border"]
         else:
-            NSColor.systemBlueColor().setFill()
-        path.fill()
+            fill_color = palette["idle_fill"]
+            border_color = palette["idle_border"]
 
-        # Draw "译" text (hidden when loading — spinner covers it)
-        if not self.loading:
-            font = NSFont.boldSystemFontOfSize_(icon_size * 0.5)
-            style = NSMutableParagraphStyle.alloc().init()
-            style.setAlignment_(NSCenterTextAlignment)
-            attrs = {
-                NSFontAttributeName: font,
-                NSForegroundColorAttributeName: NSColor.whiteColor(),
-                NSParagraphStyleAttributeName: style,
-            }
-            s = NSAttributedString.alloc().initWithString_attributes_("译", attrs)
-            h = s.size().height
-            s.drawInRect_(NSMakeRect(0, (icon_size - h) / 2 - 1, icon_size, h))
+        fill_color.setFill()
+        outer_path.fill()
+        border_color.setStroke()
+        outer_path.setLineWidth_(1.2 if self.hovered else 1.0)
+        outer_path.stroke()
+
+
+def _trigger_size(config: SimpleNamespace | None) -> float:
+    """Compress configured size into a smaller minimal affordance."""
+    if config is None:
+        return 16.0
+
+    requested = float(getattr(config, "icon_size", 26))
+    return max(14.0, min(requested * 0.46, 20.0))
 
 
 def show(x: float, y: float, config: SimpleNamespace, on_click) -> None:
@@ -156,7 +179,7 @@ def show(x: float, y: float, config: SimpleNamespace, on_click) -> None:
 
     _config = config
     _on_click_callback = on_click
-    icon_size = config.icon_size
+    icon_size = _trigger_size(config)
 
     screen = NSScreen.mainScreen()
     if not screen:
@@ -164,12 +187,12 @@ def show(x: float, y: float, config: SimpleNamespace, on_click) -> None:
     scr_h = screen.frame().size.height
     scr_w = screen.frame().size.width
 
-    win_x = x + 8
-    win_y = scr_h - y - icon_size - 8
+    win_x = x + 1
+    win_y = scr_h - y - icon_size - 1
     if win_x + icon_size > scr_w:
-        win_x = x - icon_size - 8
+        win_x = x - icon_size - 1
     if win_y < 0:
-        win_y = scr_h - y + 8
+        win_y = scr_h - y + 1
 
     frame = NSMakeRect(win_x, win_y, icon_size, icon_size)
     _trigger_window = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
@@ -178,7 +201,7 @@ def show(x: float, y: float, config: SimpleNamespace, on_click) -> None:
     _trigger_window.setLevel_(NSFloatingWindowLevel + 1)
     _trigger_window.setOpaque_(False)
     _trigger_window.setBackgroundColor_(NSColor.clearColor())
-    _trigger_window.setHasShadow_(True)
+    _trigger_window.setHasShadow_(False)
     _trigger_window.setIgnoresMouseEvents_(False)
 
     _trigger_view = TriggerView.alloc().initWithFrame_(NSMakeRect(0, 0, icon_size, icon_size))

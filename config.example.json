@@ -1,7 +1,9 @@
 {
+  "provider": "deepl",
+  "engine": "deepl",
   "api_key": "YOUR_DEEPL_API_KEY_HERE",
   "api_url": "https://api-free.deepl.com/v2/translate",
-  "engine": "deepl",
+  "model": "",
   "target_lang": "ZH",
   "min_drag_distance": 10,
   "min_text_length": 1,

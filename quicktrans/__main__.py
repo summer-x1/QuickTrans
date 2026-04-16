@@ -1,9 +1,8 @@
 """QuickTrans entry point — python3 -m quicktrans"""
 
 import os
-import sys
 
-from quicktrans.config import CONFIG_FILE, load_config, first_run_wizard
+from quicktrans.config import CONFIG_FILE, load_config, first_run_wizard, is_config_complete
 from quicktrans.log import setup_logging
 
 
@@ -14,7 +13,7 @@ def main():
     else:
         config = load_config()
 
-    if not config.api_key:
+    if not is_config_complete(config):
         config = first_run_wizard()
 
     # Set up logging

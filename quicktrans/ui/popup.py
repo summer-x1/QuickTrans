@@ -62,6 +62,45 @@ def _measure(text: str, font, max_w: float):
     return min(max_w, used.size.width), used.size.height
 
 
+def _popup_palette() -> dict[str, object]:
+    """Shared popup colors for both result and loading states."""
+    if _is_dark_mode():
+        return {
+            "bg_color": NSColor.colorWithRed_green_blue_alpha_(0.15, 0.14, 0.12, 0.96),
+            "border_color": NSColor.colorWithRed_green_blue_alpha_(1.0, 0.95, 0.85, 0.10),
+            "text_color": NSColor.colorWithRed_green_blue_alpha_(0.90, 0.87, 0.80, 1.0),
+            "btn_normal": NSColor.colorWithRed_green_blue_alpha_(0.26, 0.24, 0.20, 1.0),
+            "btn_hover": NSColor.colorWithRed_green_blue_alpha_(0.36, 0.33, 0.27, 1.0),
+            "btn_text": NSColor.colorWithRed_green_blue_alpha_(0.75, 0.72, 0.65, 1.0),
+        }
+
+    return {
+        "bg_color": NSColor.colorWithRed_green_blue_alpha_(0.97, 0.95, 0.88, 0.97),
+        "border_color": NSColor.colorWithRed_green_blue_alpha_(0.60, 0.50, 0.30, 0.18),
+        "text_color": NSColor.colorWithRed_green_blue_alpha_(0.22, 0.18, 0.10, 1.0),
+        "btn_normal": NSColor.colorWithRed_green_blue_alpha_(0.88, 0.84, 0.74, 1.0),
+        "btn_hover": NSColor.colorWithRed_green_blue_alpha_(0.78, 0.73, 0.60, 1.0),
+        "btn_text": NSColor.colorWithRed_green_blue_alpha_(0.35, 0.28, 0.15, 1.0),
+    }
+
+
+def _popup_position(win_w: float, win_h: float, x: float, y: float) -> tuple[float, float]:
+    """Position popup near mouse while keeping it onscreen."""
+    screen = NSScreen.mainScreen()
+    if screen:
+        scr_h = screen.frame().size.height
+        scr_w = screen.frame().size.width
+        win_x = x + 1
+        win_y = scr_h - y - win_h - 1
+        if win_x + win_w > scr_w:
+            win_x = x - win_w - 1
+        if win_y < 0:
+            win_y = scr_h - y + 1
+        return win_x, win_y
+
+    return x + 1, y + 1
+
+
 class _PopupBackground(NSView):
     """Custom drawn background with rounded corners and shadow."""
 
@@ -201,29 +240,19 @@ def show(translated: str, x: float, y: float, config: SimpleNamespace) -> None:
     _is_pinned = False
     _translated_text = translated
 
-    is_dark = _is_dark_mode()
-
     font = NSFont.systemFontOfSize_(config.font_size)
     padding = 20
     max_w = 460
     content_w = max_w - padding * 2
     btn_h = 26
     btn_bar_h = btn_h + 14
-
-    if is_dark:
-        bg_color      = NSColor.colorWithRed_green_blue_alpha_(0.15, 0.14, 0.12, 0.96)
-        border_color  = NSColor.colorWithRed_green_blue_alpha_(1.0,  0.95, 0.85, 0.10)
-        text_color    = NSColor.colorWithRed_green_blue_alpha_(0.90, 0.87, 0.80, 1.0)
-        btn_normal    = NSColor.colorWithRed_green_blue_alpha_(0.26, 0.24, 0.20, 1.0)
-        btn_hover     = NSColor.colorWithRed_green_blue_alpha_(0.36, 0.33, 0.27, 1.0)
-        btn_text      = NSColor.colorWithRed_green_blue_alpha_(0.75, 0.72, 0.65, 1.0)
-    else:
-        bg_color      = NSColor.colorWithRed_green_blue_alpha_(0.97, 0.95, 0.88, 0.97)
-        border_color  = NSColor.colorWithRed_green_blue_alpha_(0.60, 0.50, 0.30, 0.18)
-        text_color    = NSColor.colorWithRed_green_blue_alpha_(0.22, 0.18, 0.10, 1.0)
-        btn_normal    = NSColor.colorWithRed_green_blue_alpha_(0.88, 0.84, 0.74, 1.0)
-        btn_hover     = NSColor.colorWithRed_green_blue_alpha_(0.78, 0.73, 0.60, 1.0)
-        btn_text      = NSColor.colorWithRed_green_blue_alpha_(0.35, 0.28, 0.15, 1.0)
+    palette = _popup_palette()
+    bg_color = palette["bg_color"]
+    border_color = palette["border_color"]
+    text_color = palette["text_color"]
+    btn_normal = palette["btn_normal"]
+    btn_hover = palette["btn_hover"]
+    btn_text = palette["btn_text"]
 
     # Line spacing
     para_style = NSMutableParagraphStyle.alloc().init()
@@ -243,19 +272,7 @@ def show(translated: str, x: float, y: float, config: SimpleNamespace) -> None:
     win_w = max(200, min(max_w, win_w))
     win_h = text_h + padding * 2 + btn_bar_h
 
-    # Position near mouse
-    screen = NSScreen.mainScreen()
-    if screen:
-        scr_h = screen.frame().size.height
-        scr_w = screen.frame().size.width
-        win_x = x + 14
-        win_y = scr_h - y - win_h - 10
-        if win_x + win_w > scr_w:
-            win_x = x - win_w - 14
-        if win_y < 0:
-            win_y = scr_h - y + 14
-    else:
-        win_x, win_y = x + 14, y + 14
+    win_x, win_y = _popup_position(win_w, win_h, x, y)
 
     frame = NSMakeRect(win_x, win_y, win_w, win_h)
     _popup_window = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
@@ -312,6 +329,104 @@ def show(translated: str, x: float, y: float, config: SimpleNamespace) -> None:
         "dismissPopup:", None, False,
     )
     logger.debug("Popup shown at (%d, %d)", int(x), int(y))
+
+
+def show_loading(x: float, y: float, config: SimpleNamespace) -> None:
+    """Show a lightweight loading popup while translation is in progress."""
+    global _popup_window, _popup_timer, _is_pinned
+    dismiss()
+    _is_pinned = False
+
+    palette = _popup_palette()
+    message = "翻译中…"
+    font = NSFont.systemFontOfSize_(config.font_size - 1)
+    padding = 18
+    text_w, text_h = _measure(message, font, 220)
+    win_w = max(160, min(260, text_w + padding * 2 + 4))
+    win_h = text_h + padding * 2
+    win_x, win_y = _popup_position(win_w, win_h, x, y)
+
+    frame = NSMakeRect(win_x, win_y, win_w, win_h)
+    _popup_window = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
+        frame, NSWindowStyleMaskBorderless, NSBackingStoreBuffered, False,
+    )
+    _popup_window.setLevel_(NSFloatingWindowLevel)
+    _popup_window.setOpaque_(False)
+    _popup_window.setBackgroundColor_(NSColor.clearColor())
+    _popup_window.setHasShadow_(True)
+    _popup_window.setMovableByWindowBackground_(True)
+
+    bg_view = _PopupBackground.alloc().initWithFrame_bgColor_borderColor_(
+        NSMakeRect(0, 0, win_w, win_h), palette["bg_color"], palette["border_color"]
+    )
+    _popup_window.setContentView_(bg_view)
+
+    tv = NSTextView.alloc().initWithFrame_(
+        NSMakeRect(padding, padding, win_w - padding * 2, text_h + 4)
+    )
+    tv.setString_(message)
+    tv.setFont_(font)
+    tv.setEditable_(False)
+    tv.setSelectable_(False)
+    tv.setDrawsBackground_(False)
+    tv.setTextColor_(palette["text_color"])
+    tv.setTextContainerInset_((0, 0))
+    tv.textContainer().setLineFragmentPadding_(0)
+    bg_view.addSubview_(tv)
+
+    _popup_window.orderFrontRegardless()
+    logger.debug("Loading popup shown at (%d, %d)", int(x), int(y))
+
+
+def show_notice(message: str, x: float, y: float, config: SimpleNamespace) -> None:
+    """Show a short-lived informational popup."""
+    global _popup_window, _popup_timer, _is_pinned
+    dismiss()
+    _is_pinned = False
+
+    palette = _popup_palette()
+    font = NSFont.systemFontOfSize_(config.font_size - 1)
+    padding = 16
+    text_w, text_h = _measure(message, font, 260)
+    win_w = max(170, min(280, text_w + padding * 2 + 4))
+    win_h = text_h + padding * 2
+    win_x, win_y = _popup_position(win_w, win_h, x, y)
+
+    frame = NSMakeRect(win_x, win_y, win_w, win_h)
+    _popup_window = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
+        frame, NSWindowStyleMaskBorderless, NSBackingStoreBuffered, False,
+    )
+    _popup_window.setLevel_(NSFloatingWindowLevel)
+    _popup_window.setOpaque_(False)
+    _popup_window.setBackgroundColor_(NSColor.clearColor())
+    _popup_window.setHasShadow_(True)
+    _popup_window.setMovableByWindowBackground_(True)
+
+    bg_view = _PopupBackground.alloc().initWithFrame_bgColor_borderColor_(
+        NSMakeRect(0, 0, win_w, win_h), palette["bg_color"], palette["border_color"]
+    )
+    _popup_window.setContentView_(bg_view)
+
+    tv = NSTextView.alloc().initWithFrame_(
+        NSMakeRect(padding, padding, win_w - padding * 2, text_h + 4)
+    )
+    tv.setString_(message)
+    tv.setFont_(font)
+    tv.setEditable_(False)
+    tv.setSelectable_(False)
+    tv.setDrawsBackground_(False)
+    tv.setTextColor_(palette["text_color"])
+    tv.setTextContainerInset_((0, 0))
+    tv.textContainer().setLineFragmentPadding_(0)
+    bg_view.addSubview_(tv)
+
+    _popup_window.orderFrontRegardless()
+    _popup_timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
+        1.5,
+        NSApplication.sharedApplication().delegate(),
+        "dismissPopup:", None, False,
+    )
+    logger.debug("Notice popup shown: %s", message)
 
 
 def show_error(message: str, x: float, y: float, config: SimpleNamespace) -> None:
