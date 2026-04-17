@@ -83,7 +83,7 @@ def setup(config: SimpleNamespace, on_pause_toggle=None) -> None:
 
     # Title
     title_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-        "QuickTrans v0.2.0", None, ""
+        "QuickTrans v0.2.1", None, ""
     )
     title_item.setEnabled_(False)
     menu.addItem_(title_item)

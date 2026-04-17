@@ -25,10 +25,10 @@ mkdir -p "$CONFIG_DIR"
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # 5. Create launcher script
-LAUNCHER="/usr/local/bin/quicktrans"
 echo
-echo "Creating launcher at $LAUNCHER..."
 if [ -w "/usr/local/bin" ]; then
+    LAUNCHER="/usr/local/bin/quicktrans"
+    echo "Creating launcher at $LAUNCHER..."
     cat > "$LAUNCHER" << LAUNCH
 #!/bin/bash
 export PYTHONPATH="$PROJECT_DIR:\$PYTHONPATH"
@@ -36,12 +36,15 @@ exec python3 -m quicktrans "\$@"
 LAUNCH
     chmod +x "$LAUNCHER"
 else
-    sudo tee "$LAUNCHER" > /dev/null << LAUNCH
+    LAUNCHER="$HOME/.local/bin/quicktrans"
+    echo "Creating launcher at $LAUNCHER..."
+    mkdir -p "$HOME/.local/bin"
+    cat > "$LAUNCHER" << LAUNCH
 #!/bin/bash
 export PYTHONPATH="$PROJECT_DIR:\$PYTHONPATH"
 exec python3 -m quicktrans "\$@"
 LAUNCH
-    sudo chmod +x "$LAUNCHER"
+    chmod +x "$LAUNCHER"
 fi
 
 echo
@@ -54,7 +57,7 @@ echo
 echo "  System Settings → Privacy & Security → Input Monitoring"
 echo "  → Enable your Terminal app (Terminal.app / iTerm2)"
 echo
-echo "For Accessibility API text capture (optional but recommended):"
+echo "Accessibility is also required to capture selected text."
 echo
 echo "  System Settings → Privacy & Security → Accessibility"
 echo "  → Enable your Terminal app"
@@ -64,6 +67,12 @@ echo "Start QuickTrans in either way:"
 echo "  1. Double-click $PROJECT_DIR/QuickTrans.command"
 echo "  2. Run 'quicktrans' in Terminal"
 echo
+if [ "$LAUNCHER" = "$HOME/.local/bin/quicktrans" ]; then
+    echo "Launcher installed to $LAUNCHER"
+    echo "If 'quicktrans' is not found, add this to your shell profile:"
+    echo "  export PATH=\"$HOME/.local/bin:\$PATH\""
+    echo
+fi
 echo "Auto-start is no longer enabled by default."
 echo "If you want it, add this line to your shell profile manually:"
 echo "  (quicktrans &) 2>/dev/null"

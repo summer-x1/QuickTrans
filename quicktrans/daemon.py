@@ -39,7 +39,6 @@ _config = None
 _lock_fp = None
 
 _DOUBLE_CLICK_DELAY = 0.2
-_SHIFT_KEY_CODE = 56
 _ARROW_KEYS = {123, 124, 125, 126}  # left, right, down, up
 
 PID_DIR = os.path.expanduser("~/.config/quicktrans")

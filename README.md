@@ -29,7 +29,8 @@ bash install.sh
 安装脚本会自动完成：
 1. 安装 Python 依赖（PyObjC）
 2. 创建 `quicktrans` 启动命令
-3. 保留仓库根目录的 `QuickTrans.command` 供 Finder 双击启动
+3. 优先安装到 `/usr/local/bin/quicktrans`；若当前用户无写权限，则回退到 `~/.local/bin/quicktrans`
+4. 保留仓库根目录的 `QuickTrans.command` 供 Finder 双击启动
 
 ### macOS 权限设置
 
@@ -38,8 +39,10 @@ QuickTrans 需要以下两项权限：
 **输入监听**（必须）：
 > 系统设置 → 隐私与安全性 → 输入监听 → 开启你的终端应用
 
-**辅助功能**（推荐，用于直接获取选中文字）：
+**辅助功能**（必须）：
 > 系统设置 → 隐私与安全性 → 辅助功能 → 开启你的终端应用
+
+没有辅助功能权限时，AX 直接读取和 `System Events` 模拟 `Cmd+C` 两条取词路径都会失败。程序仍可能检测到拖选，但拿不到文字。
 
 ## 使用方法
 
@@ -50,6 +53,12 @@ QuickTrans 需要以下两项权限：
 
 ```bash
 quicktrans
+```
+
+如果安装器把 launcher 安装到了 `~/.local/bin/quicktrans`，而你的 shell 默认不包含这个目录，请先把下面这行加到 `~/.zshrc` 或 `~/.bashrc`：
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
 首次运行会启动配置向导，选择 provider、输入 API Key / model，并选择目标语言。
@@ -172,6 +181,7 @@ quicktrans
 
 **选中文字后没有出现触发气泡**
 - 检查终端应用是否已获得「输入监听」权限
+- 检查终端应用是否已获得「辅助功能」权限
 - 查看运行日志：`cat ~/.config/quicktrans/quicktrans.log`
 
 **翻译失败或报错**

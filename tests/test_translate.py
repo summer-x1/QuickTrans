@@ -5,7 +5,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from quicktrans.translate import translate_text
+from quicktrans.translate import _normalize_openai_compatible_url, translate_text
 
 
 class TestTranslate(unittest.TestCase):
@@ -95,6 +95,24 @@ class TestTranslate(unittest.TestCase):
         translated, error = translate_text("Hello World", self.gemini_config)
         self.assertEqual(translated, "你好世界")
         self.assertIsNone(error)
+
+    def test_normalize_openai_compatible_url_adds_v1_for_bare_domain(self):
+        self.assertEqual(
+            _normalize_openai_compatible_url("https://api.example.com"),
+            "https://api.example.com/v1/chat/completions",
+        )
+
+    def test_normalize_openai_compatible_url_adds_v1_for_base_path(self):
+        self.assertEqual(
+            _normalize_openai_compatible_url("https://api.example.com/compatible-mode"),
+            "https://api.example.com/compatible-mode/v1/chat/completions",
+        )
+
+    def test_normalize_openai_compatible_url_preserves_versioned_path(self):
+        self.assertEqual(
+            _normalize_openai_compatible_url("https://api.example.com/v4"),
+            "https://api.example.com/v4/chat/completions",
+        )
 
     @patch("quicktrans.translate.urlopen")
     def test_translate_empty_response(self, mock_urlopen):

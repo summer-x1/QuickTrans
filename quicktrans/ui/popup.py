@@ -41,6 +41,8 @@ _popup_window = None
 _popup_timer = None
 _is_pinned = False
 _translated_text = ""
+_copy_action_ref = None
+_pin_action_ref = None
 
 
 def _is_dark_mode() -> bool:
@@ -233,11 +235,28 @@ class _PinAction(NSObject):
         logger.debug("Popup %s", "pinned" if _is_pinned else "unpinned")
 
 
+def _close_popup(force: bool = False) -> None:
+    """Close the current popup and timer, optionally overriding pin state."""
+    global _popup_window, _popup_timer, _is_pinned, _copy_action_ref, _pin_action_ref
+
+    if _is_pinned and not force:
+        return
+    if _popup_window:
+        _popup_window.orderOut_(None)
+        _popup_window = None
+    if _popup_timer:
+        _popup_timer.invalidate()
+        _popup_timer = None
+    if force:
+        _is_pinned = False
+    _copy_action_ref = None
+    _pin_action_ref = None
+
+
 def show(translated: str, x: float, y: float, config: SimpleNamespace) -> None:
     """Show a floating popup with translated text."""
-    global _popup_window, _popup_timer, _is_pinned, _translated_text
-    dismiss()
-    _is_pinned = False
+    global _popup_window, _popup_timer, _translated_text, _copy_action_ref, _pin_action_ref
+    _close_popup(force=True)
     _translated_text = translated
 
     font = NSFont.systemFontOfSize_(config.font_size)
@@ -304,6 +323,7 @@ def show(translated: str, x: float, y: float, config: SimpleNamespace) -> None:
 
     # Copy button
     copy_action = _CopyAction.alloc().init()
+    _copy_action_ref = copy_action
     copy_btn = _PillButton.alloc().initWithFrame_title_normalColor_hoverColor_textColor_(
         NSMakeRect(padding, padding, 60, btn_h), "复制", btn_normal, btn_hover, btn_text
     )
@@ -313,6 +333,7 @@ def show(translated: str, x: float, y: float, config: SimpleNamespace) -> None:
 
     # Pin button
     pin_action = _PinAction.alloc().init()
+    _pin_action_ref = pin_action
     pin_btn = _PillButton.alloc().initWithFrame_title_normalColor_hoverColor_textColor_(
         NSMakeRect(padding + 68, padding, 60, btn_h), "固定", btn_normal, btn_hover, btn_text
     )
@@ -333,9 +354,8 @@ def show(translated: str, x: float, y: float, config: SimpleNamespace) -> None:
 
 def show_loading(x: float, y: float, config: SimpleNamespace) -> None:
     """Show a lightweight loading popup while translation is in progress."""
-    global _popup_window, _popup_timer, _is_pinned
-    dismiss()
-    _is_pinned = False
+    global _popup_window, _popup_timer
+    _close_popup(force=True)
 
     palette = _popup_palette()
     message = "翻译中…"
@@ -380,9 +400,8 @@ def show_loading(x: float, y: float, config: SimpleNamespace) -> None:
 
 def show_notice(message: str, x: float, y: float, config: SimpleNamespace) -> None:
     """Show a short-lived informational popup."""
-    global _popup_window, _popup_timer, _is_pinned
-    dismiss()
-    _is_pinned = False
+    global _popup_window, _popup_timer
+    _close_popup(force=True)
 
     palette = _popup_palette()
     font = NSFont.systemFontOfSize_(config.font_size - 1)
@@ -431,9 +450,8 @@ def show_notice(message: str, x: float, y: float, config: SimpleNamespace) -> No
 
 def show_error(message: str, x: float, y: float, config: SimpleNamespace) -> None:
     """Show a floating error popup."""
-    global _popup_window, _popup_timer, _is_pinned
-    dismiss()
-    _is_pinned = False
+    global _popup_window, _popup_timer
+    _close_popup(force=True)
 
     font = NSFont.systemFontOfSize_(config.font_size - 2)
     padding = 16
@@ -441,18 +459,7 @@ def show_error(message: str, x: float, y: float, config: SimpleNamespace) -> Non
     win_w = min(360, text_w + padding * 2 + 4)
     win_h = text_h + padding * 2
 
-    screen = NSScreen.mainScreen()
-    if screen:
-        scr_h = screen.frame().size.height
-        scr_w = screen.frame().size.width
-        win_x = x + 14
-        win_y = scr_h - y - win_h - 10
-        if win_x + win_w > scr_w:
-            win_x = x - win_w - 14
-        if win_y < 0:
-            win_y = scr_h - y + 14
-    else:
-        win_x, win_y = x + 14, y + 14
+    win_x, win_y = _popup_position(win_w, win_h, x, y)
 
     frame = NSMakeRect(win_x, win_y, win_w, win_h)
     _popup_window = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
@@ -500,12 +507,4 @@ def is_visible() -> bool:
 
 def dismiss(_=None) -> None:
     """Dismiss the translation popup."""
-    global _popup_window, _popup_timer, _is_pinned
-    if _is_pinned:
-        return
-    if _popup_window:
-        _popup_window.orderOut_(None)
-        _popup_window = None
-    if _popup_timer:
-        _popup_timer.invalidate()
-        _popup_timer = None
+    _close_popup(force=False)

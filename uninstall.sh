@@ -17,6 +17,11 @@ if [ -f "/usr/local/bin/quicktrans" ]; then
     echo "Removed /usr/local/bin/quicktrans"
 fi
 
+if [ -f "$HOME/.local/bin/quicktrans" ]; then
+    rm -f "$HOME/.local/bin/quicktrans"
+    echo "Removed $HOME/.local/bin/quicktrans"
+fi
+
 # 3. Ask about config
 read -p "Remove config and logs (~/.config/quicktrans)? [y/N] " -n 1 -r
 echo

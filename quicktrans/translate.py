@@ -220,11 +220,11 @@ def _normalize_openai_compatible_url(api_url: str) -> str:
     parsed = urlparse(api_url)
     path = parsed.path.rstrip("/")
     if not path:
-        path = "/chat/completions"
-    elif path.endswith("/v1") or path.endswith("/v4"):
-        path = f"{path}/chat/completions"
-    else:
-        path = f"{path}/chat/completions"
+        path = "/v1"
+    elif not path.endswith(("/v1", "/v4")):
+        path = f"{path}/v1"
+
+    path = f"{path}/chat/completions"
 
     return parsed._replace(path=path).geturl()
 
