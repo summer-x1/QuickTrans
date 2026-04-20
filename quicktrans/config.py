@@ -245,21 +245,8 @@ def first_run_wizard() -> SimpleNamespace:
         print("FAILED")
         print("Could not connect with this configuration. Please check and try again.")
 
-    # Target language
+    target_lang = "ZH"
     print()
-    print("Target language (translate INTO):")
-    lang_keys: list[str] = list(LANG_OPTIONS.keys())
-    for i, key in enumerate(lang_keys, 1):
-        marker = " (default)" if key == "ZH" else ""
-        print(f"  {i}. {key} — {LANG_OPTIONS[key]}{marker}")
-
-    choice: str = input(f"Choose [1-{len(lang_keys)}] (default: 1): ").strip()
-    target_lang: str
-    if choice.isdigit() and 1 <= int(choice) <= len(lang_keys):
-        target_lang = lang_keys[int(choice) - 1]
-    else:
-        target_lang = "ZH"
-
     print(f"Target language: {target_lang} — {LANG_OPTIONS[target_lang]}")
 
     # Build and save config

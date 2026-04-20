@@ -61,7 +61,7 @@ quicktrans
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-首次运行会启动配置向导，选择 provider、输入 API Key / model，并选择目标语言。
+首次运行会启动配置向导，选择 provider、输入 API Key / model。目标语言默认固定为中文（`ZH`），无需额外选择。
 
 默认不会写入 shell 自动启动。如果你需要打开终端时自动拉起，可以手动把下面这行加到 `~/.zshrc` 或 `~/.bashrc`：
 

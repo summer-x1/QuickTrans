@@ -141,7 +141,7 @@ class TriggerView(NSView):
     def drawRect_(self, rect):
         palette = _trigger_palette()
         trigger_size = self.bounds().size.width
-        outer_inset = 1.5 if self.hovered else 2.5
+        outer_inset = 2.5
         outer_size = trigger_size - outer_inset * 2
         outer_rect = NSMakeRect(outer_inset, outer_inset, outer_size, outer_size)
         outer_path = NSBezierPath.bezierPathWithOvalInRect_(outer_rect)

@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 from quicktrans.config import (
     DEFAULT_CONFIG,
+    first_run_wizard,
     load_config,
     save_config,
     _validate_api_key,
@@ -103,6 +104,16 @@ class TestConfig(unittest.TestCase):
 
         config.model = "gpt-4.1-mini"
         self.assertTrue(is_config_complete(config))
+
+    def test_first_run_wizard_defaults_target_language_to_chinese(self):
+        with patch("builtins.input", side_effect=["", "test-key"]), \
+             patch("quicktrans.config._validate_api_key", return_value=True), \
+             patch("quicktrans.config.save_config") as mock_save:
+            config = first_run_wizard()
+
+        self.assertEqual(config.provider, "deepl")
+        self.assertEqual(config.target_lang, "ZH")
+        self.assertEqual(mock_save.call_args.args[0]["target_lang"], "ZH")
 
 
 if __name__ == "__main__":
